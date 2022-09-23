@@ -1,9 +1,14 @@
+import 'dart:async';
+
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:geocoding/geocoding.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
 import 'package:weather_fl/constant.dart';
 import 'package:weather_fl/helper_function.dart';
+import 'package:weather_fl/pages/settings_page.dart';
 import 'package:weather_fl/weather_provider.dart';
 
 class WeatherHome extends StatefulWidget {
@@ -18,15 +23,41 @@ class WeatherHome extends StatefulWidget {
 class _WeatherHomeState extends State<WeatherHome> {
   late WeatherProvider _provider;
   bool _isInit = true;
+  late StreamSubscription<ConnectivityResult> subscription;
 
+  @override
+  dispose() {
+    super.dispose();
+    subscription.cancel();
+  }
 
   @override
   void didChangeDependencies() {
     if (_isInit) {
       _provider = Provider.of<WeatherProvider>(context);
-      _getPosition();
+      isConnectedToInternet().then((value) {
+        if (value) {
+          _getPosition();
+        } else {
+          messageShowing();
+        }
+      });
+
+      subscription = Connectivity().onConnectivityChanged.listen((ConnectivityResult result) {
+        if (result == ConnectivityResult.mobile || result == ConnectivityResult.wifi) {
+          _getPosition();
+        } else {
+          messageShowing();
+        }
+      });
+
       _isInit = false;
     }
+  }
+
+  void messageShowing() {
+    ScaffoldMessenger.of(context)
+        .showSnackBar(const SnackBar(content: Text('No Internet available!')));
   }
 
   _getPosition() {
@@ -48,7 +79,24 @@ class _WeatherHomeState extends State<WeatherHome> {
         elevation: 0,
         title: const Text('Weather App'),
         actions: [
-
+          IconButton(
+            icon: Icon(Icons.my_location),
+            onPressed: () { _getPosition(); },
+          ),
+          IconButton(
+            icon: Icon(Icons.search),
+            onPressed: () async {
+              /** Built in search options from Flutter */
+              final result = await showSearch(context: context, delegate: _CitySearchDelegate());
+              if (result != null) {
+                _convertCityToLatLong(result);
+              }
+            },
+          ),
+          IconButton(
+            icon: Icon(Icons.settings),
+            onPressed: () => Navigator.pushNamed(context, SettingsPage.routeName),
+          )
         ],
       ),
       body: _provider.hasDataLoaded ? ListView(
@@ -124,6 +172,71 @@ class _WeatherHomeState extends State<WeatherHome> {
           );
         },
       ),
+    );
+  }
+
+  void _convertCityToLatLong(String result) async {
+    try {
+      final locationList = await locationFromAddress(result);
+      if (locationList.isNotEmpty) {
+        final location = locationList.first;
+        _provider.setNewLatLon(location.latitude, location.longitude);
+      }
+    }catch (error) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Invalid City')));
+      throw error;
+    }
+  }
+
+}
+
+class _CitySearchDelegate extends SearchDelegate<String> {
+  @override
+  List<Widget>? buildActions(BuildContext context) {
+    return [
+      IconButton(
+          onPressed: () {
+            query = '';
+          },
+          icon: Icon(Icons.clear))
+    ];
+  }
+
+  @override
+  Widget? buildLeading(BuildContext context) {
+    IconButton(
+        onPressed: () {
+          /** When user type a string but not search it then we fetch that value with us */
+          close(context, query);
+        },
+        icon: Icon(Icons.arrow_back));
+  }
+
+  @override
+  Widget buildResults(BuildContext context) {
+    return ListTile(
+      leading: Icon(Icons.search),
+      title: Text(query),
+      onTap: () {
+        close(context, query);
+      },
+    );
+  }
+
+  @override
+  Widget buildSuggestions(BuildContext context) {
+    /** Logic If query is empty then load cities list
+     *  Otherwise loop all cities.
+     * */
+    final filteredList = query.isEmpty ? cities :
+        cities.where((city) => city.toLowerCase().contains(query.toLowerCase()));
+    return ListView(
+      children: filteredList.map((city) => ListTile(
+        onTap: () {
+          close(context, city);
+        },
+        title: Text(city),
+      )).toList(),
     );
   }
 

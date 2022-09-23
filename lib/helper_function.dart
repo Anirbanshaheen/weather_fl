@@ -1,9 +1,20 @@
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:intl/intl.dart';
-import 'package:permission_handler/permission_handler.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 String getFormattedData (num date, String pattern) {
   return DateFormat(pattern).format(DateTime.fromMillisecondsSinceEpoch(date.toInt() * 1000)); // 1 Sec = 1000 milliSecond
+}
+
+Future<bool> setTempStatus(bool status) async {
+  final prefs = await SharedPreferences.getInstance();
+  return prefs.setBool('status', status);
+}
+
+Future<bool> getTempStatus() async {
+  final prefs = await SharedPreferences.getInstance();
+  return prefs.getBool('status') ?? false;
 }
 
 Future<Position> determinePosition() async {
@@ -50,4 +61,9 @@ Future<Position> determinePosition() async {
   // When we reach here, permissions are granted and we can
   // continue accessing the position of the device.
   return await Geolocator.getCurrentPosition();
+}
+
+Future<bool> isConnectedToInternet() async {
+  var connectivityResult = await (Connectivity().checkConnectivity());
+  return connectivityResult == ConnectivityResult.mobile || connectivityResult == ConnectivityResult.wifi;
 }

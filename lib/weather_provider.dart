@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart';
 import 'package:weather_fl/constant.dart';
+import 'package:weather_fl/helper_function.dart';
 import 'package:weather_fl/models/current_response.dart';
 import 'package:weather_fl/models/forecast_response.dart';
 
@@ -21,13 +22,18 @@ class WeatherProvider with ChangeNotifier {
 
   bool get hasDataLoaded => currentResponse != null && forecastResponse != null;
 
+  void reload() {
+    _getData();
+  }
+
   void _getData() {
     _getCurrentData();
     _getForecastData();
   }
 
   void _getCurrentData() async {
-    final url = "https://api.openweathermap.org/data/2.5/weather?lat=$latitude&lon=$longitude&units=metric&appid=$weatherApiKey";
+    final unit = await tempUnit;
+    final url = "https://api.openweathermap.org/data/2.5/weather?lat=$latitude&lon=$longitude&units=$unit&appid=$weatherApiKey";
     try {
       final response = await get(Uri.parse(url));
       if (response.statusCode == 200) {
@@ -43,7 +49,8 @@ class WeatherProvider with ChangeNotifier {
   }
 
   void _getForecastData() async {
-    final url = "https://api.openweathermap.org/data/2.5/forecast?lat=$latitude&lon=$longitude&units=metric&appid=$weatherApiKey";
+    final unit = await tempUnit;
+    final url = "https://api.openweathermap.org/data/2.5/forecast?lat=$latitude&lon=$longitude&units=$unit&appid=$weatherApiKey";
     try {
       final response = await get(Uri.parse(url));
       if (response.statusCode == 200) {
@@ -57,4 +64,9 @@ class WeatherProvider with ChangeNotifier {
       throw error;
     }
   }
+
+  Future<String> get tempUnit async {
+    return await getTempStatus() ? 'imperial' : 'metric';
+  }
+
 }

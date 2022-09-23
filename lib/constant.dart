@@ -7,6 +7,8 @@ const String weatherApiKey = "238f7be47691e1e72c7d575613306ace";
 const String iconPrefix = 'https://openweathermap.org/img/wn/';
 const String iconSuffix = '@2x.png';
 
+const cities = ['Athens', 'Dhaka', 'Delhi', 'Karachi', 'London', 'New york', 'Feni', 'Bangladesh', 'Japan', 'Rocket'];
+
 const textTempBig80Style = TextStyle(
   fontSize: 80,
   fontWeight: FontWeight.bold,
